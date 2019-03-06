@@ -35,6 +35,7 @@
 #include <avr/eeprom.h>
 #include <util/delay.h>
 
+#include "state.h"
 #include "hwconf.h"
 #include "lcdprint.h"
 
@@ -49,49 +50,29 @@ volatile float voltageVector[VOLTAGE_VECTOR_LENGTH];
 #define ADC_VECTOR_LENGTH 2
 volatile uint16_t adcVector[ADC_VECTOR_LENGTH];
 
-//Thins to save in EEPROM
+//Things for PSU stuff
+
+//This is not saved in EEPROM for safety.
+volatile enum PowerState psuState = PSU_OFF;
+
+//Things to save in EEPROM
 
 //Boost Voltage, Buck Voltage, Ref Voltage, Boost Factor, Buck Factor.
 float EEMEM voltageVectorEEPROM[VOLTAGE_VECTOR_LENGTH] = {15.0, 5.0, 5.0, 10.0, 3.0};
 
-//Ex-Variables
-//float EEMEM boostVoltageEEPROM = 15.0;
-//float EEMEM buckVoltageEEPROM = 5.0;
-//float EEMEM refVoltageEEPROM = 5.0;
-
-//float EEMEM boostFactorEEPROM = 10.0;
-//float EEMEM buckFactorEEPROM = 3.0;
-
 //Things for Push-Button
 
-#define READ_BTN_PIN ((PIND >> 3) & 0x01)
+volatile enum ButtonState previousBtnState;
 
-#define BUTTON_HIGH 1
-#define BUTTON_LOW 0
+//Things for FSM
 
-volatile uint8_t previousBtnState = BUTTON_HIGH;
+volatile enum FiniteState state;
 
-//Finite State Machine
-//State 0: Display voltage.
-//State 1-2: Set voltage.
-
-#define STATE_LENGTH 6
-volatile enum finiteState {DISPLAY, SET_VOLTAGE_BOOST, SET_VOLTAGE_BUCK, SET_VOLTAGE_REF, SET_BOOST_DIV_FACTOR, SET_BUCK_DIV_FACTOR} state = DISPLAY;
-
-#define SET_STATE_LENGTH 4
-volatile enum subSetState {UNIT, DEC, CENT, MILLI} setState = UNIT;
-
-//Ratings
-#define MIN_BUCK_VOLTAGE 0.0
-#define MAX_BUCK_VOLTAGE 12.0
-
-#define MIN_BOOST_VOLTAGE 12.0
-#define MAX_BOOST_VOLTAGE 30.0
+volatile enum UnitState unitState;
 
 //Things for Display
 
-#define DISPLAY_SELECTION_LENGTH 5
-volatile enum selection {SELECT_BOOST, SELECT_BUCK, SELECT_REF, SELECT_BOOST_FACTOR, SELECT_BUCK_FACTOR} displaySelection = SELECT_BUCK;
+volatile enum DisplayState displayState;
 
 char boostVoltageString[8] = "00.00";
 char buckVoltageString[8] = "00.00";
@@ -130,31 +111,10 @@ void initStates()
 {
 	//Reset states.
 	state = DISPLAY;
-	setState = UNIT;
-	displaySelection = SELECT_BOOST;
+	unitState = UNIT;
+	displayState = SELECT_PSU;
+	previousBtnState = BTN_HIGH;
 }
-
-//EX-init EEPROM
-/*
-void initEEPROM()
-{
-	//Need tmp values for storing EEMEM values.
-	float refTmp, buckTmp, boostTmp, buckFactorTmp, boostFactorTmp;
-	
-	
-	eeprom_read_block(&boostFactorTmp, &boostFactorEEPROM, sizeof(float));	//Get Saved value from  EEPROM
-	eeprom_read_block(&buckFactorTmp, &buckFactorEEPROM, sizeof(float));	//Get Saved value from  EEPROM
-	eeprom_read_block(&boostTmp, &boostVoltageEEPROM, sizeof(float));		//Get Saved value from  EEPROM
-	eeprom_read_block(&buckTmp, &buckVoltageEEPROM, sizeof(float));			//Get Saved value from  EEPROM
-	eeprom_read_block(&refTmp, &refVoltageEEPROM, sizeof(float));			//Get Saved value from  EEPROM
-	
-	*boostFactor = boostFactorTmp;
-	*buckFactor = buckFactorTmp;
-	*boostVoltage = boostTmp;
-	*buckVoltage = buckTmp;
-	*refVoltage = refTmp;
-}
-*/
 
 void initEEPROM()
 {	
@@ -197,9 +157,26 @@ int main(void)
 		sprintf(boostFactorString, "%5.2f", *boostFactor);
 		sprintf(buckFactorString, "%5.2f", *buckFactor);
 		
-		//Display current view by selection.
-		switch(displaySelection)
+		//Here we handle the inversion of PSU power.
+		if(state == INVERT_PSU)
 		{
+			psuState = !psuState;	//Invert state.
+			INVERT_PSU_STATE;		//Send real signal to PSU.
+			
+			//Enable/Disable PWM signals.
+			if(psuState == PSU_ON) ENABLE_PWM_SIGNALS;
+			if(psuState == PSU_OFF) DISABLE_PWM_SIGNALS;
+			
+			state = DISPLAY;
+		}
+		
+		//Display current view by selection.
+		switch(displayState)
+		{
+			case SELECT_PSU:
+				printPSULine(psuState, 0);
+				printBoostLine(boostVoltageString, 1);
+			break;
 			case SELECT_BOOST:
 				printBoostLine(boostVoltageString, 0);
 				printBuckLine(buckVoltageString, 1);
@@ -218,11 +195,11 @@ int main(void)
 			break;
 			case SELECT_BUCK_FACTOR:
 				printBuckFactorLine(buckFactorString, 0);
-				printBoostLine(boostVoltageString, 1);
+				printPSULine(psuState, 1);
 			break;
 		}
 		
-		printFinalChar(state == DISPLAY ? 0 : setState + 1);
+		printFinalChar(state == DISPLAY ? 0 : unitState + 1);
 		
 		_delay_ms(10);
 	}
@@ -270,7 +247,7 @@ ISR(PCINT1_vect)
 	//Set state will choose the factor.
 	if(state != DISPLAY)
 	{
-		float factor = factors[setState];	
+		float factor = factors[unitState];	
 		
 		if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) voltageVector[state+1] += factor;	//Incremental rotation
 		if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) voltageVector[state+1] -= factor;	//Decremental rotation
@@ -284,8 +261,8 @@ ISR(PCINT1_vect)
 	}
 	else
 	{
-		if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) displaySelection = (displaySelection + 1) % DISPLAY_SELECTION_LENGTH;	//Incremental rotation
-		if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) displaySelection = (displaySelection - 1) % DISPLAY_SELECTION_LENGTH;	//Decremental rotation
+		if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) displayState = (displayState + 1) % DISPLAY_STATE_LENGTH;	//Incremental rotation
+		if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) displayState = (displayState - 1) % DISPLAY_STATE_LENGTH;	//Decremental rotation
 	}
 
 	lastEncoded = (PINC >> 2); //store this value for next time
@@ -303,26 +280,6 @@ ISR(PCINT1_vect)
 //Else current state = HIGH
 //Reset TRIGGER ONCE VARIABLE.
 
-//EX-BUTTON INTERRUPT
-/*
-ISR(INT1_vect)
-{
-	if(state == DISPLAY)
-	{
-		state = (displaySelection + 1) % STATE_LENGTH;
-	}
-	else
-	{
-		if(setState + 1 < SET_STATE_LENGTH){
-			setState = UNIT;
-			state = DISPLAY;
-			return;
-		}
-		setState++;
-	}
-}
-*/
-
 //BUTTON INTERRUPT
 ISR(TIMER2_OVF_vect)
 {
@@ -331,20 +288,22 @@ ISR(TIMER2_OVF_vect)
 	
 	if(previousBtnState |= currentBtnState)
 	{
-		if(currentBtnState == BUTTON_LOW)
+		if(currentBtnState == BTN_LOW)
 		{
 			if(state == DISPLAY)
 			{
-				state = (displaySelection + 1) % STATE_LENGTH;
+				state = (displayState + 1) % FINITE_STATE_LENGTH;
 			}
 			else
 			{
-				if(setState + 1 < SET_STATE_LENGTH){
-					setState = UNIT;
+				if(unitState + 1 < UNIT_STATE_LENGTH) {
+					unitState = UNIT;
 					state = DISPLAY;
-					return;
 				}
-				setState++;
+				else
+				{
+					unitState++;	
+				}
 			}
 		}
 	}

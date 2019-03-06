@@ -29,6 +29,8 @@
 #ifndef LCDPRINT_H_
 #define LCDPRINT_H_
 
+#include "state.h"
+
 //   00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
 //0  V  H  :     0  0  .  0  0     V              <
 //1  V  L  :     0  0  .  0  0     V
@@ -39,6 +41,8 @@
 //Display Methods.
 
 void initDisplay();
+
+void printPSULine(enum PowerState state, int y);
 
 void printBoostLine(const char *boostVoltageString, int y);
 

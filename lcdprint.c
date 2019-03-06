@@ -1,18 +1,18 @@
 /*
-    This file is part of BuckBoostProject.
+This file is part of BuckBoostProject.
 
-    BuckBoostProject is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
+BuckBoostProject is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
 
-    BuckBoostProject is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+BuckBoostProject is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
 
-    You should have received a copy of the GNU General Public License
-    along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
+You should have received a copy of the GNU General Public License
+along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
@@ -20,11 +20,11 @@
 */
 
 /*
- * lcdprint.c
- *
- * Created: 04/03/2019 23:24:42
- *  Author: Luca Bartolomei
- */ 
+* lcdprint.c
+*
+* Created: 04/03/2019 23:24:42
+*  Author: Luca Bartolomei
+*/
 
 #include <avr/pgmspace.h>
 #include "lcdpcf8574/lcdpcf8574.h"
@@ -35,9 +35,13 @@ const char finalCharacter[] = "<UDCM";
 
 const char voltsUnit[] PROGMEM = " V";
 
+const char oneSpace[] PROGMEM = " ";
 const char twoSpaces[] PROGMEM = "  ";
 const char threeSpaces[] PROGMEM = "   ";
 const char fourSpaces[] PROGMEM = "    ";
+
+const char on[] PROGMEM = "ON ";
+const char off[] PROGMEM = "OFF";
 
 void initDisplay()
 {
@@ -49,6 +53,16 @@ void initDisplay()
 	
 	//Clear display.
 	lcd_clrscr();
+}
+
+void printPSULine(enum PowerState state, int y)
+{
+	lcd_gotoxy(0,y);
+	lcd_puts_p(PSTR("PSU STATE: "));
+	lcd_gotoxy(11,y);
+	lcd_puts_p(state == PSU_ON ? on : off);
+	lcd_gotoxy(14,y);
+	lcd_puts_p(oneSpace);
 }
 
 void printBoostLine(const char *boostVoltageString, int y)

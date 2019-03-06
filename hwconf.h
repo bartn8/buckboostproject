@@ -25,33 +25,57 @@
 #ifndef HWCONF_H_
 #define HWCONF_H_
 
-//HARDWARE CONFIGURATION.
-//SET FOR ATMEGA168P
-
-//ENCODER:
-//CLK:	PC3 (PCINT11)
-//DT:	PC2 (PCINT10)
-//SW:	PD3 (INT1)
-
-//ADC:
-//BOOST:	ADC6
-//BUCK:		ADC7
-
-//PWM:
-//BOOST:	PB1 (OC1A)
-//BUCK:		PB2 (OC1B)
-
 #include <avr/io.h>
 
+//PSU RATINGS
+
+#define MIN_BUCK_VOLTAGE 0.0
+#define MAX_BUCK_VOLTAGE 12.0
+
+#define MIN_BOOST_VOLTAGE 12.0
+#define MAX_BOOST_VOLTAGE 30.0
+
+//HARDWARE CONFIGURATION.
+//SET FOR ARDUINO PRO MINI (ATMEGA168P)
+//F_CPU = 16000000L
+
+//PSU STARTER:
+//PSU:		PD2				(Pro Mini: D2)
+
+//ENCODER:
+//CLK:		PC3 (PCINT11)	(Pro Mini: A3)
+//DT:		PC2 (PCINT10)	(Pro Mini: A2)
+//SW:		PD3 (INT1)		(Pro Mini: D3)
+
+//ADC:
+//BOOST:	ADC6			(Pro Mini: A6)
+//BUCK:		ADC7			(Pro Mini: A7)
+
+//PWM:
+//BOOST:	PB1 (OC1A)		(Pro Mini: D9)
+//BUCK:		PB2 (OC1B)		(Pro Mini: D10)
+
+//Things for Push-Button
+#define READ_BTN_PIN ((PIND >> 3) & 0x01)
+
+//Things for PSU stuff
+#define INVERT_PSU_STATE PORTD^=_BV(PD2)
+
+//Things for PWM signals.
+#define ENABLE_PWM_SIGNALS DDRB|=(_BV(PB1) | _BV(PB2))
+#define DISABLE_PWM_SIGNALS DDRB&=~(_BV(PB1) | _BV(PB2))
+
+
+/************************************************************************/
+/* Input Output Register configuration                                  */
+/* Here is enabled pull-up for some pins								*/
+/************************************************************************/
 inline void setIO()
 {
-	//Set DDR for analog read and rotary encoder
+	//Set DDR for analog read and rotary encoder	
 	DDRC = 0x00;
-	DDRD = 0x00;
-	
-	//Set DDR for Port A and B
-	DDRB |= _BV(PB1) | _BV(PB2);
-	
+	DDRD = _BV(PD2);				//PSU is an output pin.
+		
 	//Enable internal pull-up
 	PORTC = _BV(PC3) | _BV(PC2);	//Rotary Pins
 	PORTD = _BV(PD3);				//Button Pin
