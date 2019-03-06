@@ -24,4 +24,4 @@ This project is licensed under the GPL v3 License - see the [LICENSE](LICENSE) f
 
 ## Third-party Libs
 
-This project contains third-party libraries. See [thirdparty](thirdparty) folder for more informations.
+This project contains third-party libraries. See [thirdparty](src/thirdparty) folder for more informations.
