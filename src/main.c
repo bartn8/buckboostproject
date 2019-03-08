@@ -52,7 +52,7 @@ volatile uint16_t adcVector[ADC_VECTOR_LENGTH];
 
 //Things for PSU stuff
 
-//This is not saved in EEPROM for safety.
+//This is not saved in EEPROM for safety (Always OFF on RESET).
 volatile enum PowerState psuState;
 
 //Things to save in EEPROM
@@ -118,16 +118,16 @@ void initStates()
 }
 
 void initEEPROM()
-{	
+{
 	//Ignore volatile warning?
 	//eeprom_read_block(&voltageVector, &voltageVectorEEPROM, VOLTAGE_VECTOR_LENGTH * sizeof(float));
-	
+
 	//Tmp values
 	uint8_t i;
 	float voltageVectorTmp[VOLTAGE_VECTOR_LENGTH];
-	
+
 	eeprom_read_block(&voltageVectorTmp, &voltageVectorEEPROM, VOLTAGE_VECTOR_LENGTH * sizeof(float));
-	
+
 	for(i=0;i<VOLTAGE_VECTOR_LENGTH;i++) voltageVector[i] = voltageVectorTmp[i];
 }
 
@@ -137,16 +137,16 @@ int main(void)
 	initStates();
 	initEEPROM();
 	initDisplay();
-	
+
 	//First disable interrupt.
 	cli();
-	
+
 	setIO();
 	setEncoder();
 	setADC();
 	setPWMTimer();
 	setPollingTimer();
-	
+
 	sei();
 
 	while (1)
@@ -157,20 +157,20 @@ int main(void)
 		sprintf(refVoltageString, "%5.3f", *refVoltage);
 		sprintf(boostFactorString, "%5.2f", *boostFactor);
 		sprintf(buckFactorString, "%5.2f", *buckFactor);
-		
+
 		//Here we handle the inversion of PSU power.
 		if(state == INVERT_PSU)
 		{
 			psuState = !psuState;	//Invert state.
 			INVERT_PSU_STATE;		//Send real signal to PSU.
-			
+
 			//Enable/Disable PWM signals.
 			if(psuState == PSU_ON) ENABLE_PWM_SIGNALS;
 			if(psuState == PSU_OFF) DISABLE_PWM_SIGNALS;
-			
+
 			state = DISPLAY;
 		}
-		
+
 		//Display current view by selection.
 		switch(displayState)
 		{
@@ -199,9 +199,9 @@ int main(void)
 				printPSULine(psuState, 1);
 			break;
 		}
-		
+
 		printFinalChar(state == DISPLAY ? 0 : unitState + 1);
-		
+
 		_delay_ms(10);
 	}
 }
@@ -211,7 +211,7 @@ int main(void)
 ISR(TIMER1_COMPA_vect)
 {
 	boostSetADC = VOLT2ADC(ACTUAL_BOOST_VOLTAGE(*boostVoltage), *refVoltage);
-	
+
 	if(*boostOutputADC > boostSetADC) OCR1A = (OCR1A - 1) & 0xFF;
 	if(*boostOutputADC < boostSetADC) OCR1A = (OCR1A + 1) & 0xFF;
 }
@@ -221,7 +221,7 @@ ISR(TIMER1_COMPA_vect)
 ISR(TIMER1_COMPB_vect)
 {
 	buckSetADC = VOLT2ADC(ACTUAL_BUCK_VOLTAGE(*buckVoltage), *refVoltage);
-	
+
 	if(*buckOutputADC > buckSetADC) OCR1B = (OCR1B + 1) & 0xFF;
 	if(*buckOutputADC < buckSetADC) OCR1B = (OCR1B - 1) & 0xFF;
 }
@@ -232,10 +232,10 @@ ISR(ANALOG_COMP_vect)
 {
 	//Save value.
 	adcVector[ADMUX & 0x01] = ADC;
-	
+
 	//Switch mux
 	ADMUX ^= 0x01;
-	
+
 	//Start new conversion.
 	ADCSRA |= _BV(ADSC);
 }
@@ -244,19 +244,19 @@ ISR(ANALOG_COMP_vect)
 ISR(PCINT1_vect)
 {
 	uint8_t sum = (lastEncoded << 2) | (PINC >> 2);
-	
+
 	//Set state will choose the factor.
 	if(state != DISPLAY)
 	{
-		float factor = factors[unitState];	
-		
+		float factor = factors[unitState];
+
 		if(sum == 0b1101 || sum == 0b0100 || sum == 0b0010 || sum == 0b1011) voltageVector[state+1] += factor;	//Incremental rotation
 		if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) voltageVector[state+1] -= factor;	//Decremental rotation
-		
+
 		//Check ratings
 		if(*buckVoltage < MIN_BUCK_VOLTAGE) *buckVoltage = MIN_BUCK_VOLTAGE;
 		if(*buckVoltage > MAX_BUCK_VOLTAGE) *buckVoltage = MAX_BUCK_VOLTAGE;
-		
+
 		if(*boostVoltage < MIN_BOOST_VOLTAGE) *boostVoltage = MIN_BOOST_VOLTAGE;
 		if(*boostVoltage > MAX_BOOST_VOLTAGE) *boostVoltage = MAX_BOOST_VOLTAGE;
 	}
@@ -286,7 +286,7 @@ ISR(TIMER2_OVF_vect)
 {
 	//Time to check buttons!
 	uint8_t currentBtnState = READ_BTN_PIN;
-	
+
 	if(previousBtnState |= currentBtnState)
 	{
 		if(currentBtnState == BTN_LOW)
@@ -303,11 +303,11 @@ ISR(TIMER2_OVF_vect)
 				}
 				else
 				{
-					unitState++;	
+					unitState++;
 				}
 			}
 		}
 	}
-	
+
 	previousBtnState = currentBtnState;
 }

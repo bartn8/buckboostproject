@@ -35,6 +35,22 @@
 #define MIN_BOOST_VOLTAGE 12.0
 #define MAX_BOOST_VOLTAGE 30.0
 
+//HARDWARE CALIBRATION
+//Vref calibration:
+// Use a voltmeter betwheen AVCC and GND to calibrate Vref value.
+// ADC need signals with an output impedance <= 10K Ohm.
+// Higher values may slow down conversions.
+
+//Boost Factor calibration
+//Measure with a multimeter R7 and R8.
+//α = R8/(R8+R7)
+//Boost Factor = 1/α
+
+//Buck Factor calibration
+//Measure with a multimeter R4 and R3.
+//α = R4/(R4+R3)
+//Buck Factor = 1/α
+
 //HARDWARE CONFIGURATION.
 //SET FOR ARDUINO PRO MINI (ATMEGA168P)
 //F_CPU = 16000000L
@@ -64,21 +80,21 @@
 //Things for PWM signals.
 #define ENABLE_PWM_SIGNALS DDRB|=(_BV(PB1) | _BV(PB2))
 #define DISABLE_PWM_SIGNALS DDRB&=~(_BV(PB1) | _BV(PB2))
-	
+
 
 /************************************************************************/
 /* Input Output Register configuration                                  */
-/* Here is enabled pull-up for some pins								*/
+/* Here is enabled pull-up for some pins								                */
 /************************************************************************/
 inline void setIO()
 {
-	//Set DDR for analog read and rotary encoder	
+	//Set DDR for analog read and rotary encoder
 	DDRC = 0x00;
-	DDRD = _BV(PD2);				//PSU is an output pin.
-		
+	DDRD = _BV(PD2);							//PSU is an output pin.
+
 	//Enable internal pull-up
 	PORTC = _BV(PC3) | _BV(PC2);	//Rotary Pins
-	PORTD = _BV(PD3);				//Button Pin
+	PORTD = _BV(PD3);							//Button Pin
 }
 
 /************************************************************************/
@@ -89,15 +105,15 @@ inline void setIO()
 inline void setEncoder()
 {
 	//Rotary Encoder Settings
-	
+
 	//Need two PCINT for rotary encoder.
 	//Use PC3 - PC2 (PCINT11 - PCINT10)
-	
+
 	//Enable PCINT1 Interrupt
 	PCICR = _BV(PCIE1);
 	//PCINT11 - PCINT10 Trigger
 	PCMSK1 = _BV(PCINT11) | _BV(PCINT10);
-	
+
 	//Ex method for button.
 	//INT1 Interrupt on Falling Edge
 	//EICRA = _BV(ISC11);
@@ -112,14 +128,14 @@ inline void setEncoder()
 inline void setADC()
 {
 	//ADC Settings
-	
+
 	//Reference AVCC, MUX = ADC6
 	ADMUX = _BV(REFS0) | _BV(MUX2) | _BV(MUX1);
-	
+
 	//Enable ADC and interrupt
 	//Prescaler 128 ~ 125Khz
 	ADCSRA = _BV(ADEN) | _BV(ADIE) | _BV(ADPS2) | _BV(ADPS1) | _BV(ADPS0);
-	
+
 	//We start a fist conversion here.
 	ADCSRA |= _BV(ADSC);
 	while(ADCSRA & _BV(ADSC));
@@ -133,19 +149,19 @@ inline void setADC()
 inline void setPWMTimer()
 {
 	//Timer 1 Settings
-	
+
 	//Reset timer 1 counter.
 	TCNT1 = 0x0000;
-	
+
 	//Shutdown PWM signal
 	OCR1A = 0x00;
 	OCR1B = 0x00;
-	
+
 	//Fast-PWM 8 bit Port A And Port B NON-INVERTING MODE.
 	//Prescaler 1, PWM freq: 62500 Hz
-	TCCR1A = _BV(COM1A1) | _BV(COM1B1) | _BV(WGM10);	
-	TCCR1B = _BV(WGM12) | _BV(CS10);					
-	
+	TCCR1A = _BV(COM1A1) | _BV(COM1B1) | _BV(WGM10);
+	TCCR1B = _BV(WGM12) | _BV(CS10);
+
 	//Enable Timer 1 Interrupt to update PWM value.
 	TIMSK1 = _BV(OCIE1B) | _BV(OCIE1A);
 }
@@ -157,13 +173,13 @@ inline void setPWMTimer()
 inline void setPollingTimer()
 {
 	TCNT2 = 0x00;
-	
+
 	//Normal mode, no PWM pin used.
 	TCCR2A = 0x00;
-	
+
 	//Prescaler 1024 ~ 15.625 Hz
 	TCCR2B = _BV(CS22) | _BV(CS21) | _BV(CS20);
-	
+
 	//Enable Timer Overflow.
 	TIMSK2 = _BV(TOIE2);
 }

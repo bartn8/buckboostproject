@@ -24,7 +24,7 @@
  *
  * Created: 04/03/2019 23:24:31
  *  Author: Luca Bartolomei
- */ 
+ */
 
 #ifndef LCDPRINT_H_
 #define LCDPRINT_H_
@@ -32,28 +32,62 @@
 #include "state.h"
 
 //   00 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15
-//0  V  H  :     0  0  .  0  0     V              <
-//1  V  L  :     0  0  .  0  0     V
-//2  V  R  E  F  :     0  .  0  0  0     V
-//3  H  F  A  C  T  :     0  0  .  0  0
-//4  L  F  A  C  T  :     0  0  .  0  0
+//0  P  S  U     S  T  A  T  E  :     O  F  F     <
+//1  V  H  :     0  0  .  0  0     V
+//2  V  L  :     0  0  .  0  0     V
+//3  V  R  E  F  :     0  .  0  0  0     V
+//4  H  F  A  C  T  :     0  0  .  0  0
+//5  L  F  A  C  T  :     0  0  .  0  0
 
 //Display Methods.
 
+/**
+ * Init display, go home(0,0) and enable retro-illumination.
+ */
 void initDisplay();
 
+/**
+ * Print the status of PSU (ON-OFF).
+ * Needs the y coordinate on display.
+ */
 void printPSULine(enum PowerState state, int y);
 
+/**
+ * Print the output voltage on Boost line.
+ * Needs the y coordinate on display.
+ */
 void printBoostLine(const char *boostVoltageString, int y);
 
+/**
+ * Print the output voltage on Buck line.
+ * Needs the y coordinate on display.
+ */
 void printBuckLine(const char *buckVoltageString, int y);
 
+/**
+ * Print the output voltage reference.
+ * Needs the y coordinate on display.
+ */
 void printRefLine(const char *refVoltageString, int y);
 
+/**
+ * Print the boost division factor.
+ * Needs the y coordinate on display.
+ */
 void printBoostFactorLine(const char *boostFactorString, int y);
 
+/**
+ * Print the buck division factor.
+ * Needs the y coordinate on display.
+ */
 void printBuckFactorLine(const char *buckFactorString, int y);
 
+/**
+ * Print final char.
+ * Configured for 16x2 LCD.
+ * Shows the current selection.
+ * Needs the y coordinate on display.
+ */
 void printFinalChar(int state);
 
 
