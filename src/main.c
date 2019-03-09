@@ -241,9 +241,12 @@ ISR(ANALOG_COMP_vect)
 }
 
 //ENCODER INTERRUPT
-ISR(PCINT1_vect)
+ISR(PCINT2_vect)
 {
-	uint8_t sum = (lastEncoded << 2) | (PINC >> 2);
+	//PIND: 7 6 5 4 3 2 1 0
+	//ENC:  0 0 C D 0 0 0 0
+	
+	uint8_t sum = (lastEncoded << 2) | ((PIND >> 4) & 0x03);
 
 	//Set state will choose the factor.
 	if(state != DISPLAY)
@@ -266,7 +269,7 @@ ISR(PCINT1_vect)
 		if(sum == 0b1110 || sum == 0b0111 || sum == 0b0001 || sum == 0b1000) displayState = (displayState - 1) % DISPLAY_STATE_LENGTH;	//Decremental rotation
 	}
 
-	lastEncoded = (PINC >> 2); //store this value for next time
+	lastEncoded = ((PIND >> 4) & 0x03); //store this value for next time
 }
 
 //Prototype Push-Button Handler:

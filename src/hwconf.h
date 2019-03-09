@@ -59,8 +59,9 @@
 //PSU:		PD2				(Pro Mini: D2)
 
 //ENCODER:
-//CLK:		PC3 (PCINT11)	(Pro Mini: A3)
-//DT:		PC2 (PCINT10)	(Pro Mini: A2)
+//Need this order for CLK and DT.
+//CLK:		PD5 (PCINT21)	(Pro Mini: D5)
+//DT:		PD4 (PCINT20)	(Pro Mini: D4)
 //SW:		PD3 (INT1)		(Pro Mini: D3)
 
 //ADC:
@@ -93,8 +94,7 @@ inline void setIO()
 	DDRD = _BV(PD2);							//PSU is an output pin.
 
 	//Enable internal pull-up
-	PORTC = _BV(PC3) | _BV(PC2);	//Rotary Pins
-	PORTD = _BV(PD3);							//Button Pin
+	PORTD = _BV(PD3) | _BV(PD4) | _BV(PD5);		//Button Pin & Rotary Pins
 }
 
 /************************************************************************/
@@ -107,12 +107,12 @@ inline void setEncoder()
 	//Rotary Encoder Settings
 
 	//Need two PCINT for rotary encoder.
-	//Use PC3 - PC2 (PCINT11 - PCINT10)
+	//Use PD5 - PD4 (PCINT21 - PCINT20)
 
-	//Enable PCINT1 Interrupt
-	PCICR = _BV(PCIE1);
-	//PCINT11 - PCINT10 Trigger
-	PCMSK1 = _BV(PCINT11) | _BV(PCINT10);
+	//Enable PCINT2 Interrupt
+	PCICR = _BV(PCIE2);
+	//PCINT21 - PCINT20 Trigger
+	PCMSK1 = _BV(PCINT21) | _BV(PCINT20);
 
 	//Ex method for button.
 	//INT1 Interrupt on Falling Edge
