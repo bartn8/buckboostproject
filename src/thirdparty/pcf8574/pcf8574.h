@@ -7,11 +7,13 @@ Released under GPLv3.
 Please refer to LICENSE file for licensing information.
 */
 
+//Modified by Luca Bartolomei (https://github.com/bartn8)
+//Adapted to work with I2CSoft Lib.
 
 #ifndef PCF8574_H_
 #define PCF8574_H_
 
-#define PCF8574_ADDRBASE (0x20) //device base address
+#define PCF8574_ADDRBASE (0x27) //device base address
 
 #define PCF8574_I2CINIT 1 //init i2c
 
@@ -19,7 +21,18 @@ Please refer to LICENSE file for licensing information.
 #define PCF8574_MAXPINS 8 //max pin per device
 
 //settings
-#define PCF8574_I2CFLEURYPATH "../i2chw/i2cmaster.h" //define the path to i2c fleury lib
+
+//SCL: D7
+//SDA: D6
+
+#define I2C_FASTMODE 1
+
+#define SCL_PIN 7
+#define SCL_PORT PORTD
+#define SDA_PIN 6
+#define SDA_PORT PORTD
+
+#define PCF8574_I2CFLEURYPATH "../i2csoft/SoftI2CMaster.h" //define the path to soft i2c lib
 
 //pin status
 volatile uint8_t pcf8574_pinstatus[PCF8574_MAXDEVICES];

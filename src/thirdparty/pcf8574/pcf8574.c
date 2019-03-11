@@ -7,6 +7,8 @@ Released under GPLv3.
 Please refer to LICENSE file for licensing information.
 */
 
+//Modified by Luca Bartolomei (https://github.com/bartn8)
+//Adapted to work with I2CSoft Lib.
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -139,7 +141,7 @@ int8_t pcf8574_getinput(uint8_t deviceid) {
 	int8_t data = -1;
 	if((deviceid >= 0 && deviceid < PCF8574_MAXDEVICES)) {
 		i2c_start(((PCF8574_ADDRBASE+deviceid)<<1) | I2C_READ);
-		data = ~i2c_readNak();
+		data = ~i2c_read(1);
 		i2c_stop();
 	}
 	return data;

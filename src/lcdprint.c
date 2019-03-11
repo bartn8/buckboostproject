@@ -33,12 +33,14 @@ along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
 //DISPLAY CONSTANTS
 const char finalCharacter[] = "<UDCM";
 
-const char voltsUnit[] PROGMEM = " V";
+const char voltsUnit[] PROGMEM = "V";
 
 const char oneSpace[] PROGMEM = " ";
 const char twoSpaces[] PROGMEM = "  ";
 const char threeSpaces[] PROGMEM = "   ";
 const char fourSpaces[] PROGMEM = "    ";
+const char sixSpaces[] PROGMEM = "       ";
+const char sevenSpaces[] PROGMEM = "       ";
 
 const char on[] PROGMEM = "ON ";
 const char off[] PROGMEM = "OFF";
@@ -47,7 +49,7 @@ void initDisplay()
 {
 	lcd_init(LCD_DISP_ON);	//init lcd
 	lcd_home();				//lcd go home
-	lcd_led(1);				//Retro-illumination on
+	lcd_led(0);				//Retro-illumination on
 	
 	//First display value set.
 	
@@ -55,7 +57,7 @@ void initDisplay()
 	lcd_clrscr();
 }
 
-void printPSULine(enum PowerState state, int y)
+void printPSULine(PowerState state, int y)
 {
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("PSU STATE: "));
@@ -70,11 +72,13 @@ void printBoostLine(const char *boostVoltageString, int y)
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("VH: "));
 	lcd_gotoxy(4,y);
+	lcd_puts_p(sevenSpaces);
+	lcd_gotoxy(4,y);
 	lcd_puts(boostVoltageString);
-	lcd_gotoxy(9,y);
-	lcd_puts_p(voltsUnit);
 	lcd_gotoxy(11,y);
-	lcd_puts_p(fourSpaces);
+	lcd_puts_p(voltsUnit);
+	lcd_gotoxy(12,y);
+	lcd_puts_p(threeSpaces);
 }
 
 void printBuckLine(const char *buckVoltageString, int y)
@@ -82,11 +86,13 @@ void printBuckLine(const char *buckVoltageString, int y)
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("VL: "));
 	lcd_gotoxy(4,y);
+	lcd_puts_p(sevenSpaces);
+	lcd_gotoxy(4,y);
 	lcd_puts(buckVoltageString);
-	lcd_gotoxy(9,y);
-	lcd_puts_p(voltsUnit);
 	lcd_gotoxy(11,y);
-	lcd_puts_p(fourSpaces);
+	lcd_puts_p(voltsUnit);
+	lcd_gotoxy(12,y);
+	lcd_puts_p(threeSpaces);
 }
 
 void printRefLine(const char *refVoltageString, int y)
@@ -94,11 +100,13 @@ void printRefLine(const char *refVoltageString, int y)
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("VREF: "));
 	lcd_gotoxy(6,y);
+	lcd_puts_p(sevenSpaces);
+	lcd_gotoxy(6,y);
 	lcd_puts(refVoltageString);
-	lcd_gotoxy(11,y);
-	lcd_puts_p(voltsUnit);
 	lcd_gotoxy(13,y);
-	lcd_puts_p(twoSpaces);
+	lcd_puts_p(voltsUnit);
+	lcd_gotoxy(14,y);
+	lcd_puts_p(oneSpace);
 }
 
 void printBoostFactorLine(const char *boostFactorString, int y)
@@ -106,9 +114,11 @@ void printBoostFactorLine(const char *boostFactorString, int y)
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("HFACT: "));
 	lcd_gotoxy(7,y);
+	lcd_puts_p(sixSpaces);
+	lcd_gotoxy(7,y);
 	lcd_puts(boostFactorString);
-	lcd_gotoxy(12,y);
-	lcd_puts_p(threeSpaces);
+	lcd_gotoxy(13,y);
+	lcd_puts_p(twoSpaces);
 }
 
 void printBuckFactorLine(const char *buckFactorString, int y)
@@ -116,9 +126,11 @@ void printBuckFactorLine(const char *buckFactorString, int y)
 	lcd_gotoxy(0,y);
 	lcd_puts_p(PSTR("LFACT: "));
 	lcd_gotoxy(7,y);
+	lcd_puts_p(sixSpaces);
+	lcd_gotoxy(7,y);
 	lcd_puts(buckFactorString);
-	lcd_gotoxy(12,y);
-	lcd_puts_p(threeSpaces);
+	lcd_gotoxy(13,y);
+	lcd_puts_p(twoSpaces);
 }
 
 void printFinalChar(int state)
