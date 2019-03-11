@@ -174,15 +174,20 @@ void saveEEPROM()
 
 void ADCHandler()
 {
-	//Save value.
-	adcVector[ADMUX & 0x01] = ADC;
+	if(!(ADCSRA & _BV(ADSC)))
+	{
+		//Save value.
+		adcVector[ADMUX & 0x01] = ADC;
 
-	//Switch mux
-	ADMUX ^= 0x01;
+		//Switch mux
+		ADMUX ^= 0x01;
 
-	//Start new conversion.
-	ADCSRA |= _BV(ADSC);
-	while(ADCSRA & _BV(ADSC));
+		//Start new conversion.
+		ADCSRA |= _BV(ADSC);
+		
+		//Wait until conversion has finished.
+		//while(ADCSRA & _BV(ADSC));
+	}
 }
 
 void buckHandler()
@@ -236,6 +241,7 @@ int main(void)
 	setADC();
 	setPWMTimer();
 	setPollingTimer();
+	setCheckTimer();
 
 	sei();
 
@@ -244,9 +250,6 @@ int main(void)
 
 		//Handlers.
 		PSUHandler();
-		ADCHandler();
-		//buckHandler();
-		//boostHandler();
 		
 		//Display things.
 		
@@ -345,18 +348,14 @@ int main(void)
 //ADC INTERRUPT
 //Read ADC value and start next conversion.
 //Disabled: slow down LCD.
-/*
-ISR(ANALOG_COMP_vect)
-{
-ADCHandler();
-}
-*/
 
 //TIMER 0 OVERFLOW INTERRUPT
+//Read ADC value and start next conversion.
 //Adjust PWM Duty cycle for buck converter.
 //Adjust PWM Duty cycle for boost converter.
 ISR(TIMER0_OVF_vect)
 {
+	ADCHandler();
 	buckHandler();
 	boostHandler();
 }
