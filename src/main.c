@@ -96,8 +96,8 @@ volatile float *buckFactor = &voltageVector[4];
 #define ACTUAL_BOOST_VOLTAGE(V) (V * (*boostFactor))
 #define ACTUAL_BUCK_VOLTAGE(V) (V * (*buckFactor))
 
-#define VIRTUAL_BOOST_VOLTAGE(V) (V * (*boostFactor))
-#define VIRTUAL_BUCK_VOLTAGE(V) (V * (*buckFactor))
+#define VIRTUAL_BOOST_VOLTAGE(V) (V / (*boostFactor))
+#define VIRTUAL_BUCK_VOLTAGE(V) (V / (*buckFactor))
 
 volatile float *boostVoltage = &voltageVector[0];
 volatile float *buckVoltage = &voltageVector[1];
