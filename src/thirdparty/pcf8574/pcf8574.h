@@ -20,19 +20,8 @@ Please refer to LICENSE file for licensing information.
 #define PCF8574_MAXDEVICES 1 //max devices, depends on address (3 bit)
 #define PCF8574_MAXPINS 8 //max pin per device
 
-//settings
-
-//SCL: D7
-//SDA: D6
-
-#define I2C_FASTMODE 1
-
-#define SCL_PIN 7
-#define SCL_PORT PORTD
-#define SDA_PIN 6
-#define SDA_PORT PORTD
-
-#define PCF8574_I2CFLEURYPATH "../i2csoft/SoftI2CMaster.h" //define the path to soft i2c lib
+#define PCF8574_I2CCONFIGPATH "../../hwconf.h"
+#define PCF8574_I2CLIBPATH "../i2csoft/SoftI2CMaster.h" //define the path to soft i2c lib
 
 //pin status
 volatile uint8_t pcf8574_pinstatus[PCF8574_MAXDEVICES];

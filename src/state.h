@@ -35,8 +35,6 @@
 
 typedef uint8_t ButtonState;
 
-//enum ButtonState {BTN_LOW = 0, BTN_HIGH = 1}; 
-
 //Turn ON/OFF the power supply.
 #define PSU_STATE_LENGTH 2
 
@@ -44,27 +42,23 @@ typedef uint8_t ButtonState;
 #define PSU_ON 1
 
 typedef uint8_t PowerState;
-
-//enum PowerState {PSU_OFF = 0, PSU_ON = 1};
-
 	
 //Finite State Machine:
 //Display mode:	show a menu, the encoder is used as cursor. Press button to enter.
 //Invert PSU:	after inverting the psu, the state return in DISPLAY.
 //Set mode:		with the encoder you can adjust value.
-#define FINITE_STATE_LENGTH 7
+#define FINITE_STATE_LENGTH 8
 
 #define STATE_DISPLAY 0
 #define STATE_INVERT_PSU 1
-#define STATE_SET_VOLTAGE_BOOST 2
-#define STATE_SET_VOLTAGE_BUCK 3
+#define STATE_SET_VOLTAGE 2
+#define STATE_SET_AMPERE 3
 #define STATE_SET_VOLTAGE_REF 4
-#define STATE_SET_BOOST_DIV_FACTOR 5
-#define STATE_SET_BUCK_DIV_FACTOR 6
+#define STATE_SET_VOLTAGE_FACTOR 5
+#define STATE_SET_SHUNT_FACTOR 6
+#define STATE_SET_SHUNT_RES 7
 
 typedef uint8_t FiniteState;
-
-//enum FiniteState {DISPLAY = 0, INVERT_PSU = 1, SET_VOLTAGE_BOOST = 2, SET_VOLTAGE_BUCK = 3, SET_VOLTAGE_REF = 4, SET_BOOST_DIV_FACTOR = 5, SET_BUCK_DIV_FACTOR = 6};
 	
 //Fine value adjustment:
 //First adjust unit, then press enter to adjust decimal and so on.
@@ -76,22 +70,19 @@ typedef uint8_t FiniteState;
 #define MILLI 3
 
 typedef uint8_t UnitState;
-
-//enum UnitState {UNIT = 0, DEC = 1, CENT = 2, MILLI = 3};
 	
 //Display menu possibilities.
-#define DISPLAY_STATE_LENGTH 6
+#define DISPLAY_STATE_LENGTH 7
 
 #define SELECT_PSU 0
-#define SELECT_BOOST 1
-#define SELECT_BUCK 2
-#define SELECT_REF 3
-#define SELECT_BOOST_FACTOR 4
-#define SELECT_BUCK_FACTOR 5
+#define SELECT_VOLTAGE 1
+#define SELECT_AMPERE 2
+#define SELECT_VOLTAGE_REF 3
+#define SELECT_VOLTAGE_FACTOR 4
+#define SELECT_SHUNT_FACTOR 5
+#define SELECT_SHUNT_RES 6
 
 typedef uint8_t DisplayState;
-
-//enum DisplayState {SELECT_PSU = 0, SELECT_BOOST = 1, SELECT_BUCK = 2, SELECT_REF = 3, SELECT_BOOST_FACTOR = 4, SELECT_BUCK_FACTOR = 5};
 
 
 #endif /* STATE_H_ */

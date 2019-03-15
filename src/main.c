@@ -45,11 +45,11 @@ along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
 //OPTIMIZATION CONSTANTS
 const float factors[] = {1.0f, 0.1f, 0.01f, 0.001f};
 
-//Boost Voltage, Buck Voltage, Ref Voltage, Boost Factor, Buck Factor.
-#define VOLTAGE_VECTOR_LENGTH 5
-volatile float voltageVector[VOLTAGE_VECTOR_LENGTH];
+//Voltage, Ampere, Ref Voltage, Voltage Factor, Shunt Factor, Shunt Resistor.
+#define VALUES_VECTOR_LENGTH 6
+volatile float valuesVector[VALUES_VECTOR_LENGTH];
 
-//Boost ADC, Buck ADC.
+//Voltage ADC, Shunt ADC.
 #define ADC_VECTOR_LENGTH 2
 volatile uint16_t adcVector[ADC_VECTOR_LENGTH];
 
@@ -60,8 +60,8 @@ volatile PowerState psuState;
 
 //Things to save in EEPROM
 
-//Boost Voltage, Buck Voltage, Ref Voltage, Boost Factor, Buck Factor.
-float EEMEM voltageVectorEEMEM[VOLTAGE_VECTOR_LENGTH] = {DEFAULT_BOOST_VOLTAGE, DEFAULT_BUCK_VOLTAGE, DEFAULT_REF_VOLTAGE, DEFAULT_BOOST_FACTOR, DEFAULT_BUCK_FACTOR};
+//Voltage, Ampere, Ref Voltage, Voltage Factor, Shunt Factor, Shunt Resistor.
+float EEMEM valuesVectorEEMEM[VALUES_VECTOR_LENGTH] = {DEFAULT_VOLTAGE, DEFAULT_AMPERE, DEFAULT_REF_VOLTAGE, DEFAULT_VOLTAGE_FACTOR, DEFAULT_SHUNT_FACTOR, DEFAULT_SHUNT_RESISTOR};
 
 //It is used to check that EEPROM is ok.
 bool EEMEM isEEPROMLoadedEEMEM = TRUE;
@@ -79,35 +79,44 @@ volatile UnitState unitState;
 
 volatile DisplayState displayState;
 
-char boostVoltageString[7] = "00.000";
-char buckVoltageString[7] = "00.000";
+char voltageString[7] = "00.000";
+char ampereString[7] = "00.000";
 char refVoltageString[7] = "0.0000";
-char boostFactorString[7] = "00.000";
-char buckFactorString[7] = "00.000";
+char voltageFactorString[7] = "00.000";
+char shuntFactorString[7] = "00.000";
+char shuntResistorString[7] = "00.000";
 
 //Things for ADC
 
-volatile float *boostFactor = &voltageVector[3];
-volatile float *buckFactor = &voltageVector[4];
+volatile float *voltage = &valuesVector[0];
+volatile float *ampere = &valuesVector[1];
+volatile float *refVoltage = &valuesVector[2];
+volatile float *voltageFactor = &valuesVector[3];
+volatile float *shuntFactor = &valuesVector[4];
+volatile float *shuntResistor = &valuesVector[5];
 
-#define VOLT2ADC(Volt, Vref) ((Volt * 1024) / Vref)
-#define ADC2VOLT(ADCValue, Vref) ((ADCValue * Vref * 1.0f) / 1024)
 
-#define ACTUAL_BOOST_VOLTAGE(V) (V * (*boostFactor))
-#define ACTUAL_BUCK_VOLTAGE(V) (V * (*buckFactor))
+//ADC = (Volts * ADC) / Volts
+#define VOLT2ADC(V) ((V * 1024) / (*refVoltage))
+//Volts = (ADC * Volts) / ADC
+#define ADC2VOLT(ADCValue) ((ADCValue * (*refVoltage)) / 1024)
 
-#define VIRTUAL_BOOST_VOLTAGE(V) (V / (*boostFactor))
-#define VIRTUAL_BUCK_VOLTAGE(V) (V / (*buckFactor))
+//Volts = Volts * PURE NUMBER
+#define ACTUAL_VOLTAGE(V) (V * (*voltageFactor))
 
-volatile float *boostVoltage = &voltageVector[0];
-volatile float *buckVoltage = &voltageVector[1];
-volatile float *refVoltage = &voltageVector[2];
+//Ampere = (Volts * PURE NUMBER) / Ohm
+#define ACTUAL_AMPERE(V) ((V * (*shuntFactor)) / (*shuntResistor))
 
-volatile uint16_t boostSetADC = 0;
-volatile uint16_t buckSetADC = 0;
+//Volts = Volts / PURE NUMBER
+#define VIRTUAL_VOLTAGE(V) (V / (*voltageFactor))
+//Volts = (Ampere * Ohm) / PURE NUMBER
+#define VIRTUAL_AMPERE(A) ((A * (*shuntResistor)) / (*shuntFactor))
 
-volatile uint16_t *boostOutputADC = &adcVector[0];
-volatile uint16_t *buckOutputADC = &adcVector[1];
+volatile uint16_t setVoltageADC;
+volatile uint16_t setShuntADC;
+
+volatile uint16_t *voltageOutputADC = &adcVector[0];
+volatile uint16_t *shuntOutputADC = &adcVector[1];
 
 //Things for Rotary Encoder
 #define DIR_LEFT 0
@@ -136,12 +145,13 @@ void checkEEPROM()
 {
 	bool isEEPROMLoaded = eeprom_read_byte(&isEEPROMLoadedEEMEM);
 	
-	if(!isEEPROMLoaded)
+	//INVERTED LOGIC
+	if(isEEPROMLoaded)
 	{
-		float voltageVectorTmp[VOLTAGE_VECTOR_LENGTH] = {DEFAULT_BOOST_VOLTAGE, DEFAULT_BUCK_VOLTAGE, DEFAULT_REF_VOLTAGE, DEFAULT_BOOST_FACTOR, DEFAULT_BUCK_FACTOR};
+		float valuesVectorTmp[VALUES_VECTOR_LENGTH] = {DEFAULT_VOLTAGE, DEFAULT_AMPERE, DEFAULT_REF_VOLTAGE, DEFAULT_VOLTAGE_FACTOR, DEFAULT_SHUNT_FACTOR};
 		
-		eeprom_write_block(voltageVectorTmp, voltageVectorEEMEM, VOLTAGE_VECTOR_LENGTH * sizeof(float));
-		eeprom_write_byte(&isEEPROMLoadedEEMEM, TRUE);
+		eeprom_write_block(valuesVectorTmp, valuesVectorEEMEM, VALUES_VECTOR_LENGTH * sizeof(float));
+		eeprom_write_byte(&isEEPROMLoadedEEMEM, FALSE /*TRUE*/);
 	}
 }
 
@@ -152,11 +162,11 @@ void loadEEPROM()
 
 	//Tmp values
 	uint8_t i;
-	float voltageVectorTmp[VOLTAGE_VECTOR_LENGTH];
+	float valuesVectorTmp[VALUES_VECTOR_LENGTH];
 
-	eeprom_read_block(voltageVectorTmp, voltageVectorEEMEM, VOLTAGE_VECTOR_LENGTH * sizeof(float));
+	eeprom_read_block(valuesVectorTmp, valuesVectorEEMEM, VALUES_VECTOR_LENGTH * sizeof(float));
 
-	for(i=0;i<VOLTAGE_VECTOR_LENGTH;i++) voltageVector[i] = voltageVectorTmp[i];
+	for(i=0;i<VALUES_VECTOR_LENGTH;i++) valuesVector[i] = valuesVectorTmp[i];
 }
 
 
@@ -164,10 +174,10 @@ void saveEEPROM()
 {
 	//Tmp values
 	uint8_t i;
-	float voltageVectorTmp[VOLTAGE_VECTOR_LENGTH];
-	for(i=0;i<VOLTAGE_VECTOR_LENGTH;i++)  voltageVectorTmp[i] = voltageVector[i];
+	float valuesVectorTmp[VALUES_VECTOR_LENGTH];
+	for(i=0;i<VALUES_VECTOR_LENGTH;i++)  valuesVectorTmp[i] = valuesVector[i];
 	
-	eeprom_write_block(voltageVectorTmp, voltageVectorEEMEM, VOLTAGE_VECTOR_LENGTH * sizeof(float));
+	eeprom_write_block(valuesVectorTmp, valuesVectorEEMEM, VALUES_VECTOR_LENGTH * sizeof(float));
 }
 
 //Handlers
@@ -190,23 +200,54 @@ void ADCHandler()
 	}
 }
 
-void buckHandler()
+//PWM Handler:
+//It controls that output parameters match settings parameters, changing PWM duty cycle.
+//Ampere setting is more important than voltage setting.
+//TODO: Implement a slow start algorithm.
+void PWMHandler()
 {
-	buckSetADC = VOLT2ADC(VIRTUAL_BUCK_VOLTAGE(*buckVoltage), *refVoltage);
+	//Convert settings value into an ADC value.
+	setVoltageADC = VOLT2ADC(VIRTUAL_VOLTAGE(*voltage));
+	setShuntADC = VOLT2ADC(VIRTUAL_AMPERE(*ampere));
 
-	//Mask is 0x01FF (9 bit) because Timer 1 is limited to 256 count in this Fast-PWM mode.
-	if(*buckOutputADC > buckSetADC && OCR1A + 1 <= 0x01FF) OCR1A = (OCR1A + 1);
-	if(*buckOutputADC < buckSetADC && OCR1A - 1 >= 0x0000) OCR1A = (OCR1A - 1);
+	//Output ampere is more than set ampere
+	//Need to reduce PWM Duty cycle.
+	if(*shuntOutputADC > setShuntADC)
+	{
+		if(OCR1A > 0x0000)
+		{
+			OCR1A = OCR1A - 1;
+			OCR1B = OCR1A;
+			return;
+		}
+	}
+	
+	//Output voltage is more than set voltage
+	//Need to reduce PWM Duty cycle.
+	if(*voltageOutputADC > setVoltageADC)
+	{
+		if(OCR1A > 0x0000)
+		{
+			OCR1A = OCR1A - 1;
+			OCR1B = OCR1A;
+			return;
+		}
+	}
+	
+	//Output voltage is less than set voltage
+	//Need to increase PWM Duty cycle.
+	if(*voltageOutputADC < setVoltageADC)
+	{
+		//Mask is 0x01FF (9 bit) because Timer 1 is limited to 512 counts in this Fast-PWM mode.
+		if(OCR1A < 0x01FF)
+		{
+			OCR1A = OCR1A + 1;
+			OCR1B = OCR1A;
+			return;
+		}
+	}
 }
 
-void boostHandler()
-{
-	boostSetADC = VOLT2ADC(VIRTUAL_BOOST_VOLTAGE(*boostVoltage), *refVoltage);
-
-	//Mask is 0xFF (8 bit) because Timer 1 is limited to 256 count in this Fast-PWM mode.
-	if(*boostOutputADC > boostSetADC && OCR1B - 1 >= 0x00) OCR1B = (OCR1B - 1) & 0xFF;
-	if(*boostOutputADC < boostSetADC && OCR1B + 1 <= 0xFF) OCR1B = (OCR1B + 1) & 0xFF;
-}
 
 void PSUHandler()
 {
@@ -256,75 +297,102 @@ int main(void)
 		//Display current view by selection.
 		switch(displayState)
 		{
+			//--SELECT PSU CASE--
 			case SELECT_PSU:
+			
 			//Convert float to string.
 			if(state == STATE_DISPLAY)
 			{
-				dtostrf(ACTUAL_BOOST_VOLTAGE(ADC2VOLT(*boostOutputADC, *refVoltage)), 5, 3, boostVoltageString);
+				dtostrf(ACTUAL_VOLTAGE(ADC2VOLT(*voltageOutputADC)), 5, 3, voltageString);
 			}
 			else
 			{
-				dtostrf(*boostVoltage, 5, 3, boostVoltageString);
+				dtostrf(*voltage, 5, 3, voltageString);
 			}
 			
 			printPSULine(psuState, 0);
-			printBoostLine(boostVoltageString, 1);
+			printVoltageLine(voltageString, 1);
 			break;
-			case SELECT_BOOST:
+			
+			//--SELECT VOLTAGE CASE--
+			case SELECT_VOLTAGE:
+			
 			//Convert float to string.
 			if(state == STATE_DISPLAY)
 			{
-				dtostrf(ACTUAL_BOOST_VOLTAGE(ADC2VOLT(*boostOutputADC, *refVoltage)), 5, 3, boostVoltageString);
-				dtostrf(ACTUAL_BUCK_VOLTAGE(ADC2VOLT(*buckOutputADC, *refVoltage)), 5, 3, buckVoltageString);
+				dtostrf(ACTUAL_VOLTAGE(ADC2VOLT(*voltageOutputADC)), 5, 3, voltageString);
+				dtostrf(ACTUAL_AMPERE(ADC2VOLT(*shuntOutputADC)), 5, 3, ampereString);
 			}
 			else
 			{
-				dtostrf(*boostVoltage, 5, 3, boostVoltageString);
-				dtostrf(*buckVoltage, 5, 3, buckVoltageString);
+				dtostrf(*voltage, 5, 3, voltageString);
+				dtostrf(*ampere, 5, 3, ampereString);
 			}
 			
 			
-			printBoostLine(boostVoltageString, 0);
-			printBuckLine(buckVoltageString, 1);
+			printVoltageLine(voltageString, 0);
+			printAmpereLine(ampereString, 1);
 			break;
-			case SELECT_BUCK:
+			
+			//--SELECT AMPERE CASE--
+			case SELECT_AMPERE:
+			
 			//Convert float to string.
 			if(state == STATE_DISPLAY)
 			{
-				dtostrf(ACTUAL_BOOST_VOLTAGE(ADC2VOLT(*boostOutputADC, *refVoltage)), 5, 3, boostVoltageString);
-				dtostrf(ACTUAL_BUCK_VOLTAGE(ADC2VOLT(*buckOutputADC, *refVoltage)), 5, 3, buckVoltageString);
+				dtostrf(ACTUAL_AMPERE(ADC2VOLT(*shuntOutputADC)), 5, 3, ampereString);
 			}
 			else
 			{
-				dtostrf(*boostVoltage, 5, 3, boostVoltageString);
-				dtostrf(*buckVoltage, 5, 3, buckVoltageString);
+				dtostrf(*ampere, 5, 3, ampereString);
 			}
+			
 			dtostrf(*refVoltage, 5, 3, refVoltageString);
 			
-			printBuckLine(buckVoltageString, 0);
-			printRefLine(refVoltageString, 1);
+			printAmpereLine(ampereString, 0);
+			printVRefLine(refVoltageString, 1);
 			break;
-			case SELECT_REF:
+			
+			//--SELECT VOTLAGE REFERENCE CASE--
+			case SELECT_VOLTAGE_REF:
+			
 			//Convert float to string.
 			dtostrf(*refVoltage, 5, 3, refVoltageString);
-			dtostrf(*boostFactor, 5, 3, boostFactorString);
+			dtostrf(*voltageFactor, 5, 3, voltageFactorString);
 			
-			printRefLine(refVoltageString, 0);
-			printBoostFactorLine(boostFactorString, 1);
+			printVRefLine(refVoltageString, 0);
+			printVoltageFactorLine(voltageFactorString, 1);
 			break;
-			case SELECT_BOOST_FACTOR:
-			//Convert float to string.
-			dtostrf(*boostFactor, 5, 3, boostFactorString);
-			dtostrf(*buckFactor, 5, 3, buckFactorString);
 			
-			printBoostFactorLine(boostFactorString, 0);
-			printBuckFactorLine(buckFactorString, 1);
-			break;
-			case SELECT_BUCK_FACTOR:
+			//--SELECT VOTLAGE FACTOR CASE--
+			case SELECT_VOLTAGE_FACTOR:
+			
 			//Convert float to string.
-			dtostrf(*buckFactor, 5, 3, buckFactorString);
+			dtostrf(*voltageFactor, 5, 3, voltageFactorString);
+			dtostrf(*shuntFactor, 5, 3, shuntFactorString);
+			
+			printVoltageFactorLine(voltageFactorString, 0);
+			printShuntFactorLine(shuntFactorString, 1);
+			break;
+			
+			//--SELECT SHUNT FACTOR CASE--
+			case SELECT_SHUNT_FACTOR:
+			
+			//Convert float to string.
+			dtostrf(*shuntFactor, 5, 3, shuntFactorString);
+			dtostrf(*shuntResistor, 5, 3, shuntResistorString);
 
-			printBuckFactorLine(buckFactorString, 0);
+			printShuntFactorLine(shuntFactorString, 0);
+			printShuntResistorLine(shuntResistorString, 1);
+			break;
+			
+			//--SELECT SHUNT RESISTOR CASE--
+			case SELECT_SHUNT_RES:
+			
+			//Convert float to string.
+			dtostrf(*shuntResistor, 5, 3, shuntResistorString);
+
+			printShuntResistorLine(shuntResistorString, 0);
 			printPSULine(psuState, 1);
 			break;
 		}
@@ -335,20 +403,6 @@ int main(void)
 	}
 }
 
-//TIMER COMP A INTERRUPT (BUCK)
-//Disabled: slow down LCD.
-//Adjust PWM Duty cycle for buck converter.
-//ISR(TIMER1_COMPA_vect)
-
-//TIMER COMP B INTERRUPT (BOOST)
-//Disabled: slow down LCD.
-//Adjust PWM Duty cycle for boost converter.
-//ISR(TIMER1_COMPB_vect)
-
-//ADC INTERRUPT
-//Read ADC value and start next conversion.
-//Disabled: slow down LCD.
-
 //TIMER 0 OVERFLOW INTERRUPT
 //Read ADC value and start next conversion.
 //Adjust PWM Duty cycle for buck converter.
@@ -356,8 +410,7 @@ int main(void)
 ISR(TIMER0_OVF_vect)
 {
 	ADCHandler();
-	buckHandler();
-	boostHandler();
+	PWMHandler();
 }
 
 
@@ -388,7 +441,7 @@ ISR(PCINT2_vect)
 			}
 			else
 			{
-				voltageVector[state-2] += factor;
+				valuesVector[state-2] += factor;
 				debouncingCounter = 0;
 			}
 		}
@@ -407,17 +460,19 @@ ISR(PCINT2_vect)
 			}
 			else
 			{
-				voltageVector[state-2] -= factor;
+				valuesVector[state-2] -= factor;
 				debouncingCounter = 0;
 			}
 		}
 
 		//Check ratings
-		if(*buckVoltage < MIN_BUCK_VOLTAGE) *buckVoltage = MIN_BUCK_VOLTAGE;
-		if(*buckVoltage > MAX_BUCK_VOLTAGE) *buckVoltage = MAX_BUCK_VOLTAGE;
+		if(*voltage < MIN_VOLTAGE) *voltage = MIN_VOLTAGE;
+		if(*voltage > MAX_VOLTAGE) *voltage = MAX_VOLTAGE;
 
-		if(*boostVoltage < MIN_BOOST_VOLTAGE) *boostVoltage = MIN_BOOST_VOLTAGE;
-		if(*boostVoltage > MAX_BOOST_VOLTAGE) *boostVoltage = MAX_BOOST_VOLTAGE;
+		if(*ampere < MIN_AMPERE) *ampere = MIN_AMPERE;
+		if(*ampere > MAX_AMPERE) *ampere = MAX_AMPERE;
+		
+		//TODO: Add factors ratings???
 	}
 	else
 	{
@@ -435,7 +490,7 @@ ISR(PCINT2_vect)
 			}
 			else
 			{
-				displayState = (displayState + 1) % DISPLAY_STATE_LENGTH;
+				displayState = displayState < DISPLAY_STATE_LENGTH - 1 ? displayState + 1 : DISPLAY_STATE_LENGTH -1;
 				debouncingCounter = 0;
 			}
 		}
@@ -454,7 +509,7 @@ ISR(PCINT2_vect)
 			}
 			else
 			{
-				displayState = (displayState - 1) % DISPLAY_STATE_LENGTH;
+				displayState = displayState == 0 ? 0 : displayState -1;
 				debouncingCounter = 0;
 			}
 		}

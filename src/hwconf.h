@@ -22,32 +22,9 @@ along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
 *  Author: Luca Bartolomei
 */
 
-#ifndef HWCONF_H_
-#define HWCONF_H_
-
-#include <avr/io.h>
-
-//PSU RATINGS
-
-#define MIN_BUCK_VOLTAGE 0.0
-#define MAX_BUCK_VOLTAGE 12.0
-
-#define MIN_BOOST_VOLTAGE 12.0
-#define MAX_BOOST_VOLTAGE 30.0
-
-//DEFAULT VOLTAGE AND FACTORS
-
-#define DEFAULT_BOOST_VOLTAGE 15.0f
-#define DEFAULT_BUCK_VOLTAGE 5.0f
-#define DEFAULT_REF_VOLTAGE 5.0f
-#define DEFAULT_BOOST_FACTOR 7.5456f
-#define DEFAULT_BUCK_FACTOR 2.9979f
-
-//ENCODER SETTINGS
-#define ENCODER_STEPS 4
-
 //OPTIMIZATIONS:
 //Disabled ADC and TIMER 1 Interrupt.
+//because they slow down LCD.
 
 //HARDWARE CALIBRATION
 //Vref calibration:
@@ -79,13 +56,62 @@ along with BuckBoostProject.  If not, see <http://www.gnu.org/licenses/>.
 //SW:		PD3 (INT1)		(Pro Mini: D3)
 
 //ADC:
-//BOOST:	ADC0			(Pro Mini: A0)
-//BUCK:		ADC1			(Pro Mini: A1)
+//VOLTAGE:	ADC0			(Pro Mini: A0)
+//SHUNT:	ADC1			(Pro Mini: A1)
 
 //PWM:
 //Need this order to better components placement.
-//BOOST:	PB2 (OC1B)		(Pro Mini: D10)
-//BUCK:		PB1 (OC1A)		(Pro Mini: D9)
+//NON-INV:	PB2 (OC1B)		(Pro Mini: D10)
+//INV:		PB1 (OC1A)		(Pro Mini: D9)
+
+//BUILT IN LED:
+//LED:		PB5				(Pro Mini: D13)
+
+//I2C:
+//SDA:		PD6				(Pro Mini: D6)
+//SCL:		PD7				(Pro Mini: D7)
+
+#ifndef HWCONF_H_
+#define HWCONF_H_
+
+#include <avr/io.h>
+
+//PSU RATINGS
+
+#define MIN_VOLTAGE 0.0
+#define MAX_VOLTAGE 24.0
+
+#define MIN_AMPERE 0.0
+#define MAX_AMPERE 3.0
+
+//TODO: Add factors ratings???
+
+//DEFAULT VOLTAGE AND FACTORS
+
+//Volts
+#define DEFAULT_VOLTAGE 5.0f
+//Ampere
+#define DEFAULT_AMPERE 1.0f
+//Volts
+#define DEFAULT_REF_VOLTAGE 5.0f
+//PURE NUMBER
+#define DEFAULT_VOLTAGE_FACTOR 7.647f
+//PURE NUMBER
+#define DEFAULT_SHUNT_FACTOR 0.1f
+//Ohms
+#define DEFAULT_SHUNT_RESISTOR 0.1f
+
+//ENCODER SETTINGS
+#define ENCODER_STEPS 4
+
+//I2C Settings
+#define I2C_FASTMODE 1
+
+#define SCL_PIN 7
+#define SCL_PORT PORTD
+
+#define SDA_PIN 6
+#define SDA_PORT PORTD
 
 //Things for Push-Button
 #define READ_BTN_PIN ((PIND >> PD3) & 0x01)
@@ -134,11 +160,6 @@ inline void setEncoder()
 	PCICR = _BV(PCIE2);
 	//PCINT21 - PCINT20 Trigger
 	PCMSK2 = _BV(PCINT21) | _BV(PCINT20);
-
-	//Ex method for button.
-	//INT1 Interrupt on Falling Edge
-	//EICRA = _BV(ISC11);
-	//EIMSK = _BV(INT1);
 }
 
 /************************************************************************/
@@ -174,13 +195,14 @@ inline void setPWMTimer()
 	//Reset timer 1 counter.
 	TCNT1 = 0x0000;
 
-	//Shutdown PWM signal
-	OCR1A = 0x00;
-	OCR1B = 0x00;
+	//Min Value. (9 bit)
+	OCR1A = 0x0000;
+	OCR1B = 0x0000;
 
-	//Fast-PWM 9 bit Port A And Port B NON-INVERTING MODE.
+	//Fast-PWM 9 bit.
+	//Port A INVERTING MODE And Port B NON-INVERTING MODE.
 	//Prescaler 1, PWM freq: 31250 Hz
-	TCCR1A = _BV(COM1A1) | _BV(COM1B1) | _BV(WGM11);
+	TCCR1A = _BV(COM1A1) | _BV(COM1A0) | _BV(COM1B1) | _BV(WGM11);
 	TCCR1B = _BV(WGM12) | _BV(CS10);
 
 	//Enable Timer 1 Interrupt to update PWM value.
@@ -188,7 +210,7 @@ inline void setPWMTimer()
 }
 
 /************************************************************************/
-/* Timer 0 is used to check PWM adjust                                  */
+/* Timer 0 is used to check PWM adjust and ADC                          */
 /* Check Frequency: 976.5 Hz                                            */
 /************************************************************************/
 inline void setCheckTimer()
@@ -197,7 +219,7 @@ inline void setCheckTimer()
 	
 	//Normal mode, no PWM pin used.
 	TCCR0A = 0x00;
-	//Prescaler 256 ~ 976.5 Hz
+	//Prescaler 256 ~ 62500 Hz
 	TCCR0B = _BV(CS01) | _BV(CS00);
 	
 	//Enable Timer Overflow.
